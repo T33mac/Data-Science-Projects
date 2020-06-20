@@ -1,0 +1,255 @@
+---
+title: Machine Learning Project
+output: html_notebook
+---
+```{r}
+setwd('~/Machine_Learning_R')
+```
+
+### Load libraries
+```{r}
+library(tidyverse)
+library(reshape2)
+```
+
+### Load and peek at data
+```{r}
+housing <- read.csv('housing.csv')
+head(housing)
+```
+### Summarize
+```{r}
+summary(housing)
+```
+### Check out grapical parameters function
+```{r}
+?par
+```
+### Create a plot matrix
+```{r}
+par(mfrow=c(2,5))
+
+colnames(housing)
+
+ggplot(data = melt(housing), mapping = aes(x = value)) + 
+  geom_histogram(bins = 30) + facet_wrap(~variable, scales = 'free_x')
+```
+### Impute the 207 missing values
+```{r}
+housing$total_bedrooms[is.na(housing$total_bedrooms)] = median(housing$total_bedrooms , na.rm = TRUE)
+```
+### Change the totals columns into means columns
+```{r}
+housing$mean_bedrooms = housing$total_bedrooms/housing$households
+housing$mean_rooms = housing$total_rooms/housing$households
+```
+### Drop the totals columns
+```{r}
+drops = c('total_bedrooms', 'total_rooms')
+
+housing = housing[ , !(names(housing) %in% drops)]
+```
+### View
+```{r}
+head(housing)
+```
+# Turn Categoricals into Booleans
+### List ocean prox categories
+```{r}
+categories = unique(housing$ocean_proximity)
+categories
+```
+### Split categories off
+```{r}
+cat_housing = data.frame(ocean_proximity = housing$ocean_proximity)
+```
+### Make new empty dataframe of all 0s, where each category has it's own column
+```{r}
+for(cat in categories){
+  cat_housing[,cat] = rep(0, times= nrow(cat_housing))
+}
+head(cat_housing)
+tail(cat_housing)
+```
+### Use a for loop to populate the appropriate columns of the dataframe
+```{r}
+for(i in 1:length(cat_housing$ocean_proximity)){
+  cat = as.character(cat_housing$ocean_proximity[i])
+  cat_housing[,cat][i] = 1
+}
+head(cat_housing)
+tail(cat_housing)
+```
+### Drop original col from dataframe
+```{r}
+cat_columns = names(cat_housing)
+keep_columns = cat_columns[cat_columns != 'ocean_proximity']
+cat_housing = select(cat_housing,one_of(keep_columns))
+```
+### View
+```{r}
+tail(cat_housing)
+```
+# Scale the numerical values except median_house_value
+```{r}
+drops = c('ocean_proximity', 'median_house_value')
+housing_num = housing[, !(names(housing) %in% drops)]
+head(housing_num)
+```
+### Scaling
+```{r}
+scaled_housing_num = scale(housing_num)
+head(scaled_housing_num)
+```
+### Merge the altered numerical and scaled dataframes
+```{r}
+cleaned_housing = cbind(cat_housing, scaled_housing_num,          median_house_value=housing$median_house_value)
+head(cleaned_housing)
+```
+# Create a Train/Test Set of Data
+```{r}
+set.seed(1738)
+sample = sample.int(n = nrow(cleaned_housing), 
+                    size = floor(.8*nrow(cleaned_housing)), 
+                    replace = F)
+train = cleaned_housing[sample,]#just the samples
+test = cleaned_housing[-sample,]#not the samples
+
+head(train)
+```
+### Test the split data sets
+```{r}
+nrow(train) + nrow(test) == nrow(cleaned_housing)
+```
+### Test some predictive models
+```{r}
+library(boot)
+?cv.glm # note the K option for K fold cross validation
+
+glm_house = glm(median_house_value~median_income+
+                  mean_rooms+population,
+                data=cleaned_housing)
+k_fold_cv_error = cv.glm(cleaned_housing, glm_house, K=5)
+```
+```{r}
+k_fold_cv_error$delta
+```
+```{r}
+glm_cv_rmse = sqrt(k_fold_cv_error$delta)[1]
+glm_cv_rmse #off by about $83,000... it is a start
+```
+```{r}
+names(glm_house)
+```
+```{r}
+glm_house$coefficients
+```
+# Random Forest Model
+```{r}
+library(randomForest)
+?randomForest
+names(train)
+```
+```{r}
+set.seed(1738)
+
+train_y = train[,"median_house_value"]
+train_x = train[, names(train) !="median_house_value"]
+
+head(train_y)
+head(train_x)
+```
+```{r}
+rf_model = randomForest(train_x, y = train_y, 
+                        ntree = 500, 
+                        importance = TRUE)
+```
+```{r}
+names(rf_model)
+```
+```{r}
+rf_model$importance
+```
+### Oob(out of bag error estimate)
+```{r}
+oob_prediction = predict(rf_model) #leaving out a data source forces OOB predictions
+```
+```{r}
+train_mse = mean(as.numeric((oob_prediction - train_y)^2))
+oob_rmse = sqrt(train_mse)
+oob_rmse
+```
+#### *This trained within $49,000 house price*
+
+### Try this model on the test data
+```{r}
+test_y = test[,'median_house_value']
+test_x = test[, names(test) !='median_house_value']
+
+y_pred = predict(rf_model , test_x)
+test_mse = mean(((y_pred - test_y)^2))
+test_rmse = sqrt(test_mse)
+test_rmse
+```
+```{r}
+cities <- read.csv('cal_cities_lat_long.csv')
+names(cities)[names(cities) == "Name"] <- "City"
+```
+
+
+```{r}
+summary(cities)
+```
+
+### Median Latitude: 35.49
+### Equatorial circumference: 24,901 miles
+
+### Median Longitude: -119.4
+### Meridional circumference: 24,860 miles
+
+### latitude lines __
+### longitude lines |
+
+### ~ 69 statute ^ miles per degree of latitude 35.49 lat
+### ~ 56 statute miles per degree of <> longitude at 35.49 lat
+```{r}
+drops_loc = c('ocean_proximity', 'median_income',
+              'housing_median_age', 'population',
+              'mean_bedrooms', 'mean_rooms',
+              'housing_median_age', 'households')
+housing_loc = housing[, !(names(housing) %in% drops_loc)]
+head(housing_loc)
+```
+```{r}
+pops <- read.csv('cal_populations_city.csv')
+head(pops)
+```
+```{r}
+drops_pops = c('Incorportation_date', 'pop_april_1980',
+               'pop_april_2000', 'County', 
+               'pop_april_2010')
+pops = pops[, !(names(pops) %in% drops_pops)]
+head(pops, 10)
+```
+```{r}
+head(cities, 10)
+```
+```{r}
+cities_merged <- merge(cities, pops, by='City')
+head(cities_merged, 100)
+```
+###Finding 1990 cities with populations over 700k
+```{r}
+cities_most <- cities_merged[
+  which(cities_merged$pop_april_1990 >= 7e+05),]
+
+head(cities_most)
+```
+```{r}
+library(geosphere)
+```
+
+
+
+
+
