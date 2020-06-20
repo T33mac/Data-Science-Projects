@@ -3,7 +3,7 @@ title: Machine Learning Project
 output: html_notebook
 ---
 ```{r}
-setwd('~/Machine_Learning_R')
+setwd('~/GitHub/Data-Science-Projects/Machine_Learning_R')
 ```
 
 ### Load libraries
@@ -191,6 +191,7 @@ test_mse = mean(((y_pred - test_y)^2))
 test_rmse = sqrt(test_mse)
 test_rmse
 ```
+# Feature Engineering Assignment p.188
 ```{r}
 cities <- read.csv('cal_cities_lat_long.csv')
 names(cities)[names(cities) == "Name"] <- "City"
@@ -248,8 +249,3 @@ head(cities_most)
 ```{r}
 library(geosphere)
 ```
-
-
-
-
-
