@@ -238,7 +238,7 @@ head(cities, 10)
 cities_merged <- merge(cities, pops, by='City')
 head(cities_merged, 100)
 ```
-###Finding 1990 cities with populations over 700k
+### Finding 1990 cities with populations over 700k
 ```{r}
 cities_most <- cities_merged[
   which(cities_merged$pop_april_1990 >= 7e+05),]
