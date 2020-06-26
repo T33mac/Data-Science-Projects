@@ -2,9 +2,10 @@ library(shiny)
 library(datasets)
 data(iris)
 
+model <- lm(Sepal.Length ~ Petal.Length, data = iris)
 
 ui <- fluidPage(
-
+  
   titlePanel("Sepal Length to Petal Length"),
   
   sidebarLayout(
@@ -33,11 +34,12 @@ server <- function(input, output) {
       xlab = "Petal Length",
       ylab = "Sepal Length")
     
-    model <- lm(iris$Sepal.Length ~ iris$Petal.Length)
+    p_length <- data.frame(input$length)
     
-    p_length <- input$length
+    new.data <- data.frame(Petal.Length = input$length)
     
-    s_length <- model$fitted
+    s_length <- predict(model, newdata = new.data)
+    
     
     lines(
       x = iris$Petal.Length,
@@ -45,7 +47,7 @@ server <- function(input, output) {
       col = "blue",
       lwd = 3)
     
-    points(x=p_length, y=7, #Don't know what to put for y here to follow the regression line
+    points(x=p_length, y=s_length, #Don't know what to put for y here to follow the regression line
            col = "red",
            lwd = 6)
   })
